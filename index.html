@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Split It — fair bill splitter</title>
+<meta name="description" content="Split trip and dinner bills fairly. See who pays whom in the fewest payments. Free, no sign-up, works offline.">
+<meta name="theme-color" content="#0f7a5a">
+<style>
+  :root {
+    --bg: #f4f1ea;
+    --card: #ffffff;
+    --ink: #1c2321;
+    --muted: #5f6b67;
+    --line: #e2ddd2;
+    --accent: #0f7a5a;
+    --accent-ink: #ffffff;
+    --accent-soft: #dff1ea;
+    --warn: #b3412e;
+    --warn-soft: #fbe7e2;
+    --field: #faf8f3;
+    --shadow: 0 1px 2px rgba(28, 35, 33, .06), 0 8px 24px rgba(28, 35, 33, .06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #111614;
+      --card: #1a211f;
+      --ink: #ecf1ee;
+      --muted: #9aa8a3;
+      --line: #2b3532;
+      --accent: #3ecf9f;
+      --accent-ink: #06231a;
+      --accent-soft: #17352c;
+      --warn: #ff8f7a;
+      --warn-soft: #3a1f1a;
+      --field: #141a18;
+      --shadow: none;
+    }
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    font-size: 16px;
+    line-height: 1.5;
+    -webkit-font-smoothing: antialiased;
+  }
+  .wrap { max-width: 620px; margin: 0 auto; padding: 20px 16px 56px; }
+
+  header { padding: 12px 4px 20px; }
+  .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+  .logo { display: flex; align-items: center; gap: 10px; font-weight: 800; font-size: 22px; letter-spacing: -.02em; }
+  .logo-mark {
+    width: 36px; height: 36px; border-radius: 10px; background: var(--accent); color: var(--accent-ink);
+    display: grid; place-items: center; font-size: 20px; font-weight: 800;
+  }
+  header p { color: var(--muted); margin-top: 8px; font-size: 15px; }
+  .cur { width: auto; padding: 8px 10px; font-weight: 600; }
+
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 16px;
+    padding: 18px; margin-bottom: 16px; box-shadow: var(--shadow);
+  }
+  h2 { font-size: 17px; display: flex; align-items: center; gap: 10px; margin-bottom: 14px; letter-spacing: -.01em; }
+  .step {
+    width: 26px; height: 26px; border-radius: 50%; background: var(--accent-soft); color: var(--accent);
+    display: grid; place-items: center; font-size: 14px; font-weight: 700; flex: none;
+  }
+  label, .label { display: block; font-size: 13px; font-weight: 600; color: var(--muted); margin: 12px 0 6px; }
+
+  input, select, button { font: inherit; color: inherit; }
+  input[type=text], input[type=number], select {
+    width: 100%; padding: 12px 14px; border: 1px solid var(--line); border-radius: 10px;
+    background: var(--field); min-height: 46px;
+  }
+  input:focus-visible, select:focus-visible, button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .row { display: flex; gap: 8px; }
+  .row > * { flex: 1; min-width: 0; }
+
+  .btn {
+    border: 0; border-radius: 10px; padding: 12px 18px; min-height: 46px; cursor: pointer;
+    background: var(--accent); color: var(--accent-ink); font-weight: 700; white-space: nowrap;
+  }
+  .btn:active { transform: translateY(1px); }
+  .btn.ghost { background: transparent; color: var(--ink); border: 1px solid var(--line); font-weight: 600; }
+  .btn.wide { width: 100%; margin-top: 16px; }
+  .row .btn { flex: none; }
+
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 6px; padding: 7px 8px 7px 14px; border-radius: 999px;
+    background: var(--accent-soft); color: var(--ink); font-weight: 600; font-size: 15px;
+  }
+  .chip button {
+    border: 0; background: transparent; cursor: pointer; width: 26px; height: 26px; border-radius: 50%;
+    color: var(--muted); font-size: 18px; line-height: 1;
+  }
+  .chip button:hover { background: var(--card); color: var(--warn); }
+  .pick {
+    border: 1px solid var(--line); background: var(--field); color: var(--muted); cursor: pointer;
+    padding: 9px 14px; border-radius: 999px; font-weight: 600; font-size: 15px; min-height: 40px;
+  }
+  .pick[aria-pressed=true] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  .pick[aria-pressed=true]::before { content: "✓ "; }
+
+  .hint { color: var(--muted); font-size: 14px; }
+  .error { color: var(--warn); background: var(--warn-soft); border-radius: 8px; padding: 8px 12px; font-size: 14px; margin-top: 10px; }
+  .error:empty { display: none; }
+
+  .list { list-style: none; margin-top: 16px; border-top: 1px solid var(--line); }
+  .list li { display: flex; align-items: center; gap: 12px; padding: 12px 0; border-bottom: 1px solid var(--line); }
+  .list .info { flex: 1; min-width: 0; }
+  .list .title { font-weight: 600; overflow-wrap: anywhere; }
+  .list .sub { color: var(--muted); font-size: 13px; overflow-wrap: anywhere; }
+  .amt { font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
+  .del {
+    border: 0; background: transparent; cursor: pointer; color: var(--muted); width: 36px; height: 36px;
+    border-radius: 8px; font-size: 20px; flex: none;
+  }
+  .del:hover { background: var(--warn-soft); color: var(--warn); }
+
+  .total { display: flex; justify-content: space-between; align-items: baseline; padding-top: 12px; font-weight: 700; }
+  .total .amt { font-size: 20px; }
+
+  .pay { list-style: none; display: grid; gap: 8px; }
+  .pay li {
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    background: var(--accent-soft); border-radius: 12px; padding: 14px;
+  }
+  .pay .who { font-weight: 700; overflow-wrap: anywhere; }
+  .pay .arrow { color: var(--muted); font-size: 14px; }
+  .pay .amt { margin-left: auto; font-size: 18px; color: var(--accent); }
+
+  details { margin-top: 16px; }
+  summary { cursor: pointer; color: var(--muted); font-weight: 600; font-size: 14px; padding: 6px 0; }
+  table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 14px; }
+  th, td { text-align: right; padding: 8px 4px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+  th:first-child, td:first-child { text-align: left; overflow-wrap: anywhere; }
+  th { color: var(--muted); font-weight: 600; font-size: 12px; }
+  .pos { color: var(--accent); font-weight: 700; }
+  .neg { color: var(--warn); font-weight: 700; }
+
+  .actions { display: flex; gap: 8px; margin-top: 16px; }
+  .actions .btn { flex: 1; }
+  footer { text-align: center; color: var(--muted); font-size: 13px; padding: 8px 12px; }
+  footer button { background: none; border: 0; color: var(--warn); cursor: pointer; text-decoration: underline; font-size: 13px; margin-top: 10px; padding: 8px; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="top">
+      <div class="logo"><span class="logo-mark" aria-hidden="true">÷</span>Split It</div>
+      <select id="cur" class="cur" aria-label="Currency">
+        <option>₹</option><option>$</option><option>€</option><option>£</option>
+      </select>
+    </div>
+    <p>Split trip and dinner bills fairly. See who pays whom, in the fewest payments.</p>
+  </header>
+
+  <section class="card">
+    <h2><span class="step">1</span>Who is in the group?</h2>
+    <form id="personForm" class="row" autocomplete="off">
+      <input type="text" id="personName" placeholder="Type a name" maxlength="30" aria-label="Friend's name">
+      <button class="btn" type="submit">Add</button>
+    </form>
+    <div class="error" id="personError" role="alert"></div>
+    <div class="chips" id="people" style="margin-top:14px"></div>
+  </section>
+
+  <section class="card">
+    <h2><span class="step">2</span>Add what was spent</h2>
+    <p class="hint" id="needPeople">Add at least two people first.</p>
+    <form id="expenseForm" autocomplete="off" hidden>
+      <label for="desc">What was it for?</label>
+      <input type="text" id="desc" placeholder="Dinner, petrol, room…" maxlength="40">
+      <div class="row">
+        <div>
+          <label for="amount">Amount</label>
+          <input type="number" id="amount" placeholder="0" min="0" step="0.01" inputmode="decimal">
+        </div>
+        <div>
+          <label for="payer">Who paid?</label>
+          <select id="payer"></select>
+        </div>
+      </div>
+      <span class="label">Who shared it? <span style="font-weight:400">(tap to leave someone out)</span></span>
+      <div class="chips" id="sharers"></div>
+      <div class="error" id="expenseError" role="alert"></div>
+      <button class="btn wide" type="submit">Add expense</button>
+    </form>
+    <ul class="list" id="expenses" hidden></ul>
+    <div class="total" id="totalRow" hidden><span>Total spent</span><span class="amt" id="total"></span></div>
+  </section>
+
+  <section class="card">
+    <h2><span class="step">3</span>Who pays whom</h2>
+    <p class="hint" id="resultHint">Your result will show up here once you add an expense.</p>
+    <ul class="pay" id="payments"></ul>
+    <details id="breakdown" hidden>
+      <summary>See each person's numbers</summary>
+      <table>
+        <thead><tr><th>Name</th><th>Paid</th><th>Share</th><th>Balance</th></tr></thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </details>
+    <div class="actions" id="actions" hidden>
+      <button class="btn" id="copyBtn" type="button">Copy as message</button>
+      <button class="btn ghost" id="shareBtn" type="button" hidden>Share</button>
+    </div>
+  </section>
+
+  <footer>
+    Free. No sign-up. Everything stays on this device.<br>
+    <button id="resetBtn" type="button">Start over</button>
+  </footer>
+</div>
+
+<script>
+(function () {
+  'use strict';
+  var KEY = 'split-it-v1';
+  var $ = function (id) { return document.getElementById(id); };
+
+  var state = load();
+  var picked = new Set(state.people.map(function (p) { return p.id; }));
+
+  function load() {
+    try {
+      var s = JSON.parse(localStorage.getItem(KEY));
+      if (s && Array.isArray(s.people) && Array.isArray(s.expenses)) return s;
+    } catch (e) {}
+    return { people: [], expenses: [], cur: '₹', next: 1 };
+  }
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); } catch (e) {}
+  }
+  function el(tag, props, kids) {
+    var n = document.createElement(tag);
+    for (var k in (props || {})) {
+      if (k === 'text') n.textContent = props[k];
+      else if (k === 'on') n.addEventListener('click', props[k]);
+      else n.setAttribute(k, props[k]);
+    }
+    (kids || []).forEach(function (c) { n.appendChild(c); });
+    return n;
+  }
+  function nameOf(id) {
+    var p = state.people.find(function (x) { return x.id === id; });
+    return p ? p.name : '?';
+  }
+  function money(cents) {
+    var v = cents / 100;
+    return state.cur + v.toLocaleString(state.cur === '₹' ? 'en-IN' : 'en-US', {
+      minimumFractionDigits: cents % 100 ? 2 : 0, maximumFractionDigits: 2
+    });
+  }
+
+  /* ---------- the maths (all in whole paise/cents, so no rounding drift) ---------- */
+  function compute() {
+    var paid = {}, share = {};
+    state.people.forEach(function (p) { paid[p.id] = 0; share[p.id] = 0; });
+    var total = 0;
+    state.expenses.forEach(function (e) {
+      total += e.amount;
+      paid[e.payer] += e.amount;
+      var n = e.sharers.length, base = Math.floor(e.amount / n), extra = e.amount - base * n;
+      e.sharers.forEach(function (id, i) { share[id] += base + (i < extra ? 1 : 0); });
+    });
+    var owes = [], gets = [];
+    state.people.forEach(function (p) {
+      var b = paid[p.id] - share[p.id];
+      if (b < 0) owes.push({ id: p.id, amt: -b });
+      if (b > 0) gets.push({ id: p.id, amt: b });
+    });
+    var payments = [];
+    var big = function (a, b) { return b.amt - a.amt; };
+    while (owes.length && gets.length) {
+      owes.sort(big); gets.sort(big);
+      var x = Math.min(owes[0].amt, gets[0].amt);
+      payments.push({ from: owes[0].id, to: gets[0].id, amt: x });
+      owes[0].amt -= x; gets[0].amt -= x;
+      if (!owes[0].amt) owes.shift();
+      if (!gets[0].amt) gets.shift();
+    }
+    return { paid: paid, share: share, total: total, payments: payments };
+  }
+
+  /* ---------- drawing ---------- */
+  function render() {
+    $('cur').value = state.cur;
+
+    var people = $('people'); people.textContent = '';
+    state.people.forEach(function (p) {
+      people.appendChild(el('span', { class: 'chip' }, [
+        el('span', { text: p.name }),
+        el('button', { type: 'button', 'aria-label': 'Remove ' + p.name, text: '×', on: function () { removePerson(p.id); } })
+      ]));
+    });
+
+    var ready = state.people.length >= 2;
+    $('needPeople').hidden = ready;
+    $('expenseForm').hidden = !ready;
+
+    var payer = $('payer'), keep = payer.value;
+    payer.textContent = '';
+    state.people.forEach(function (p) { payer.appendChild(el('option', { value: p.id, text: p.name })); });
+    if (keep && state.people.some(function (p) { return String(p.id) === keep; })) payer.value = keep;
+
+    var sharers = $('sharers'); sharers.textContent = '';
+    state.people.forEach(function (p) {
+      sharers.appendChild(el('button', {
+        type: 'button', class: 'pick', 'aria-pressed': picked.has(p.id) ? 'true' : 'false', text: p.name,
+        on: function () { picked.has(p.id) ? picked.delete(p.id) : picked.add(p.id); render(); }
+      }));
+    });
+
+    var list = $('expenses'); list.textContent = '';
+    state.expenses.forEach(function (e) {
+      var everyone = e.sharers.length === state.people.length;
+      var sub = nameOf(e.payer) + ' paid · shared by ' + (everyone ? 'everyone' : e.sharers.map(nameOf).join(', '));
+      list.appendChild(el('li', {}, [
+        el('div', { class: 'info' }, [
+          el('div', { class: 'title', text: e.desc }),
+          el('div', { class: 'sub', text: sub })
+        ]),
+        el('span', { class: 'amt', text: money(e.amount) }),
+        el('button', { type: 'button', class: 'del', 'aria-label': 'Delete ' + e.desc, text: '×', on: function () {
+          state.expenses = state.expenses.filter(function (x) { return x.id !== e.id; });
+          save(); render();
+        } })
+      ]));
+    });
+    var has = state.expenses.length > 0;
+    list.hidden = !has;
+    $('totalRow').hidden = !has;
+
+    var r = compute();
+    $('total').textContent = money(r.total);
+
+    var pay = $('payments'); pay.textContent = '';
+    r.payments.forEach(function (p) {
+      pay.appendChild(el('li', {}, [
+        el('span', { class: 'who', text: nameOf(p.from) }),
+        el('span', { class: 'arrow', text: 'pays' }),
+        el('span', { class: 'who', text: nameOf(p.to) }),
+        el('span', { class: 'amt', text: money(p.amt) })
+      ]));
+    });
+    var hint = $('resultHint');
+    hint.hidden = has && r.payments.length > 0;
+    hint.textContent = !has ? 'Your result will show up here once you add an expense.'
+      : 'All settled. Nobody owes anything. 🎉';
+
+    var rows = $('rows'); rows.textContent = '';
+    state.people.forEach(function (p) {
+      var b = r.paid[p.id] - r.share[p.id];
+      rows.appendChild(el('tr', {}, [
+        el('td', { text: p.name }),
+        el('td', { text: money(r.paid[p.id]) }),
+        el('td', { text: money(r.share[p.id]) }),
+        el('td', { class: b > 0 ? 'pos' : b < 0 ? 'neg' : '', text: b > 0 ? 'gets ' + money(b) : b < 0 ? 'owes ' + money(-b) : 'settled' })
+      ]));
+    });
+    $('breakdown').hidden = !has;
+    $('actions').hidden = !has;
+    $('shareBtn').hidden = !navigator.share;
+  }
+
+  /* ---------- people ---------- */
+  $('personForm').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var input = $('personName'), name = input.value.trim().replace(/\s+/g, ' ');
+    var err = $('personError'); err.textContent = '';
+    if (!name) return;
+    if (state.people.some(function (p) { return p.name.toLowerCase() === name.toLowerCase(); })) {
+      err.textContent = name + ' is already in the group. Try a nickname.';
+      return;
+    }
+    var id = state.next++;
+    state.people.push({ id: id, name: name });
+    picked.add(id);
+    input.value = '';
+    save(); render(); input.focus();
+  });
+
+  function removePerson(id) {
+    var err = $('personError'); err.textContent = '';
+    var used = state.expenses.some(function (e) { return e.payer === id || e.sharers.indexOf(id) !== -1; });
+    if (used) {
+      err.textContent = nameOf(id) + ' is part of an expense. Delete those expenses first.';
+      return;
+    }
+    state.people = state.people.filter(function (p) { return p.id !== id; });
+    picked.delete(id);
+    save(); render();
+  }
+
+  /* ---------- expenses ---------- */
+  $('expenseForm').addEventListener('submit', function (ev) {
+    ev.preventDefault();
+    var err = $('expenseError'); err.textContent = '';
+    var amount = Math.round(parseFloat($('amount').value) * 100);
+    var sharers = state.people.map(function (p) { return p.id; }).filter(function (id) { return picked.has(id); });
+    if (!(amount > 0)) { err.textContent = 'Type an amount bigger than 0.'; $('amount').focus(); return; }
+    if (!sharers.length) { err.textContent = 'Pick at least one person who shared it.'; return; }
+    state.expenses.push({
+      id: state.next++,
+      desc: $('desc').value.trim() || 'Expense',
+      amount: amount,
+      payer: Number($('payer').value),
+      sharers: sharers
+    });
+    $('desc').value = ''; $('amount').value = '';
+    picked = new Set(state.people.map(function (p) { return p.id; }));
+    save(); render(); $('desc').focus();
+  });
+
+  /* ---------- sharing ---------- */
+  function message() {
+    var r = compute(), lines = ['Split It summary', 'Total spent: ' + money(r.total), ''];
+    if (r.payments.length) {
+      lines.push('Who pays whom:');
+      r.payments.forEach(function (p) { lines.push('• ' + nameOf(p.from) + ' pays ' + nameOf(p.to) + ' ' + money(p.amt)); });
+    } else {
+      lines.push('All settled. Nobody owes anything.');
+    }
+    lines.push('', 'Expenses:');
+    state.expenses.forEach(function (e) { lines.push('• ' + e.desc + ': ' + money(e.amount) + ' (paid by ' + nameOf(e.payer) + ')'); });
+    return lines.join('\n');
+  }
+  function flash(btn, text) {
+    var old = btn.textContent; btn.textContent = text;
+    setTimeout(function () { btn.textContent = old; }, 1600);
+  }
+  $('copyBtn').addEventListener('click', function () {
+    var btn = this, text = message();
+    var fallback = function () {
+      var t = document.createElement('textarea');
+      t.value = text; t.style.position = 'fixed'; t.style.opacity = '0';
+      document.body.appendChild(t); t.select();
+      var ok = false;
+      try { ok = document.execCommand('copy'); } catch (e) {}
+      t.remove();
+      flash(btn, ok ? 'Copied ✓' : 'Could not copy');
+    };
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(text).then(function () { flash(btn, 'Copied ✓'); }, fallback);
+    } else fallback();
+  });
+  $('shareBtn').addEventListener('click', function () {
+    navigator.share({ text: message() }).catch(function () {});
+  });
+
+  $('cur').addEventListener('change', function () { state.cur = this.value; save(); render(); });
+  $('resetBtn').addEventListener('click', function () {
+    if (!state.people.length && !state.expenses.length) return;
+    if (!confirm('Clear all names and expenses?')) return;
+    state = { people: [], expenses: [], cur: state.cur, next: 1 };
+    picked = new Set();
+    save(); render();
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
